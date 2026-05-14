@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IrisVision - Clasificador de Flores</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0a0e1a;
+      --surface: rgba(255, 255, 255, .04);
+      --card: rgba(255, 255, 255, .06);
+      --glass: rgba(255, 255, 255, .08);
+      --accent: #a855f7;
+      --accent2: #22d3ee;
+      --green: #10b981;
+      --pink: #ec4899;
+      --gold: #f59e0b;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --border: rgba(255, 255, 255, .08);
+      --r: 16px;
+      --setosa: #22d3ee;
+      --versicolor: #a855f7;
+      --virginica: #ec4899
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0
+    }
+
+    body {
+      font-family: 'Outfit', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle at 30% 20%, rgba(168, 85, 247, .08) 0%, transparent 50%), radial-gradient(circle at 70% 80%, rgba(34, 211, 238, .06) 0%, transparent 50%), radial-gradient(circle at 50% 50%, rgba(236, 72, 153, .04) 0%, transparent 50%);
+      z-index: -1;
+      animation: bgShift 20s ease-in-out infinite alternate
+    }
+
+    @keyframes bgShift {
+      0% {
+        transform: translate(0, 0)
+      }
+
+      100% {
+        transform: translate(-5%, -3%)
+      }
+    }
+
+    /* Header */
+    header {
+      background: rgba(10, 14, 26, .8);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+      padding: 20px 40px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      position: sticky;
+      top: 0;
+      z-index: 100
+    }
+
+    .logo {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--pink));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      animation: float 3s ease-in-out infinite
+    }
+
+    @keyframes float {
+
+      0%,
+      100% {
+        transform: translateY(0)
+      }
+
+      50% {
+        transform: translateY(-4px)
+      }
+    }
+
+    header h1 {
+      font-size: 1.7rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent2), var(--accent), var(--pink));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent
+    }
+
+    .sub {
+      font-size: .82rem;
+      color: var(--muted);
+      margin-top: 2px
+    }
+
+    .acc-pills {
+      margin-left: auto;
+      display: flex;
+      gap: 8px
+    }
+
+    .acc-pill {
+      padding: 6px 14px;
+      border-radius: 50px;
+      font-size: .75rem;
+      font-weight: 600;
+      border: 1px solid var(--border);
+      background: var(--surface)
+    }
+
+    .acc-pill span {
+      color: var(--accent2)
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 4px;
+      background: var(--surface);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border);
+      padding: 8px 40px
+    }
+
+    .tab {
+      padding: 12px 28px;
+      cursor: pointer;
+      font-size: .88rem;
+      font-weight: 500;
+      color: var(--muted);
+      border-radius: 10px;
+      transition: .3s
+    }
+
+    .tab.active {
+      color: #fff;
+      background: linear-gradient(135deg, rgba(168, 85, 247, .2), rgba(34, 211, 238, .15));
+      border: 1px solid rgba(168, 85, 247, .3)
+    }
+
+    .tab:hover:not(.active) {
+      color: var(--text);
+      background: var(--glass)
+    }
+
+    /* Layout */
+    main {
+      max-width: 850px;
+      margin: 32px auto;
+      padding: 0 24px
+    }
+
+    .panel {
+      display: none
+    }
+
+    .panel.active {
+      display: block
+    }
+
+    .card {
+      background: var(--card);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 28px;
+      margin-bottom: 24px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color .3s
+    }
+
+    .card:hover {
+      border-color: rgba(168, 85, 247, .2)
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(168, 85, 247, .3), rgba(34, 211, 238, .3), transparent)
+    }
+
+    .card h2 {
+      font-size: 1.15rem;
+      font-weight: 600;
+      margin-bottom: 18px;
+      display: flex;
+      align-items: center;
+      gap: 10px
+    }
+
+    .card h2 .icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: .9rem
+    }
+
+    /* Modelo selector */
+    .model-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap
+    }
+
+    .mbtn {
+      flex: 1;
+      min-width: 160px;
+      padding: 16px 18px;
+      border-radius: 12px;
+      cursor: pointer;
+      border: 2px solid var(--border);
+      background: var(--surface);
+      color: var(--muted);
+      font-family: inherit;
+      font-size: .95rem;
+      font-weight: 600;
+      transition: .3s;
+      text-align: center;
+      position: relative;
+      overflow: hidden
+    }
+
+    .mbtn.sel {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(168, 85, 247, .08);
+      box-shadow: 0 0 20px rgba(168, 85, 247, .1)
+    }
+
+    .mbtn:hover:not(.sel) {
+      border-color: rgba(255, 255, 255, .15);
+      color: var(--text)
+    }
+
+    .mbtn small {
+      display: block;
+      font-size: .75rem;
+      color: var(--muted);
+      margin-top: 4px;
+      font-weight: 400
+    }
+
+    /* Formulario */
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-top: 4px
+    }
+
+    .field label {
+      display: block;
+      font-size: .8rem;
+      color: var(--muted);
+      margin-bottom: 6px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .06em
+    }
+
+    .field input {
+      width: 100%;
+      background: rgba(255, 255, 255, .04);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 14px 16px;
+      font-size: .95rem;
+      font-family: inherit;
+      transition: .3s
+    }
+
+    .field input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(168, 85, 247, .12)
+    }
+
+    .field .hint-range {
+      font-size: .7rem;
+      color: var(--muted);
+      margin-top: 4px;
+      opacity: .7
+    }
+
+    /* Botones */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 32px;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 1rem;
+      font-weight: 600;
+      transition: .3s;
+      position: relative;
+      overflow: hidden
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), var(--pink));
+      color: #fff
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(168, 85, 247, .3)
+    }
+
+    .btn-secondary {
+      background: linear-gradient(135deg, var(--accent2), var(--green));
+      color: #0a0e1a
+    }
+
+    .btn-secondary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(34, 211, 238, .3)
+    }
+
+    .btn-ghost {
+      background: var(--surface);
+      color: var(--muted);
+      border: 1px solid var(--border)
+    }
+
+    .btn-ghost:hover {
+      color: var(--text);
+      border-color: rgba(255, 255, 255, .2)
+    }
+
+    .btn:disabled {
+      opacity: .5;
+      cursor: not-allowed;
+      transform: none !important;
+      box-shadow: none !important
+    }
+
+    /* Resultado individual */
+    .rbox {
+      display: none;
+      margin-top: 24px;
+      padding: 24px;
+      border-radius: var(--r);
+      animation: slideUp .5s ease;
+      position: relative;
+      overflow: hidden
+    }
+
+    .rbox.show {
+      display: block
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(16px)
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0)
+      }
+    }
+
+    .rbox.setosa {
+      background: linear-gradient(135deg, rgba(34, 211, 238, .1), rgba(34, 211, 238, .03));
+      border: 1px solid rgba(34, 211, 238, .2)
+    }
+
+    .rbox.versicolor {
+      background: linear-gradient(135deg, rgba(168, 85, 247, .1), rgba(168, 85, 247, .03));
+      border: 1px solid rgba(168, 85, 247, .2)
+    }
+
+    .rbox.virginica {
+      background: linear-gradient(135deg, rgba(236, 72, 153, .1), rgba(236, 72, 153, .03));
+      border: 1px solid rgba(236, 72, 153, .2)
+    }
+
+    .rlbl {
+      font-size: .72rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      font-weight: 600
+    }
+
+    .rmain {
+      font-size: 1.8rem;
+      font-weight: 700;
+      margin: 8px 0
+    }
+
+    .rprob-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 16px
+    }
+
+    .rprob-item {
+      text-align: center;
+      padding: 12px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, .04);
+      border: 1px solid var(--border)
+    }
+
+    .rprob-item .name {
+      font-size: .72rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      margin-bottom: 6px
+    }
+
+    .rprob-item .val {
+      font-size: 1.3rem;
+      font-weight: 700
+    }
+
+    .rprob-item .bar {
+      height: 4px;
+      border-radius: 50px;
+      background: var(--border);
+      margin-top: 8px;
+      overflow: hidden
+    }
+
+    .rprob-item .bar-fill {
+      height: 100%;
+      border-radius: 50px;
+      transition: width .8s ease
+    }
+
+    /* Lotes */
+    textarea {
+      width: 100%;
+      background: rgba(255, 255, 255, .04);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 12px;
+      padding: 16px;
+      font-size: .84rem;
+      font-family: 'Courier New', monospace;
+      resize: vertical;
+      min-height: 150px;
+      transition: .3s
+    }
+
+    textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(168, 85, 247, .12)
+    }
+
+    .hint {
+      font-size: .78rem;
+      color: var(--muted);
+      margin-bottom: 12px;
+      line-height: 1.8
+    }
+
+    .hint code {
+      background: rgba(168, 85, 247, .1);
+      border: 1px solid rgba(168, 85, 247, .2);
+      padding: 2px 7px;
+      border-radius: 6px;
+      font-size: .78rem;
+      color: var(--accent)
+    }
+
+    /* Tabla */
+    .tbl-wrap {
+      overflow-x: auto;
+      margin-top: 16px;
+      border-radius: 12px;
+      border: 1px solid var(--border)
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .82rem
+    }
+
+    th {
+      background: rgba(255, 255, 255, .04);
+      color: var(--muted);
+      font-weight: 600;
+      text-align: left;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+      font-size: .72rem;
+      text-transform: uppercase;
+      letter-spacing: .05em
+    }
+
+    td {
+      padding: 11px 14px;
+      border-bottom: 1px solid var(--border)
+    }
+
+    tr:hover td {
+      background: rgba(255, 255, 255, .02)
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 12px;
+      border-radius: 50px;
+      font-size: .75rem;
+      font-weight: 600
+    }
+
+    .b-setosa {
+      background: rgba(34, 211, 238, .12);
+      color: var(--setosa)
+    }
+
+    .b-versicolor {
+      background: rgba(168, 85, 247, .12);
+      color: var(--versicolor)
+    }
+
+    .b-virginica {
+      background: rgba(236, 72, 153, .12);
+      color: var(--virginica)
+    }
+
+    /* Metricas */
+    .mets {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px
+    }
+
+    .met {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px;
+      text-align: center;
+      position: relative;
+      overflow: hidden
+    }
+
+    .met::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2))
+    }
+
+    .mv {
+      font-size: 1.7rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent2), var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent
+    }
+
+    .ml {
+      font-size: .68rem;
+      color: var(--muted);
+      margin-top: 4px;
+      text-transform: uppercase;
+      letter-spacing: .06em
+    }
+
+    /* Confusion Matrix */
+    .cm-wrap {
+      margin-top: 24px;
+      animation: slideUp .6s ease;
+    }
+    .cm-table {
+      width: 100%;
+      max-width: 400px;
+      margin: 0 auto;
+      border-spacing: 4px;
+      border-collapse: separate;
+    }
+    .cm-cell {
+      aspect-ratio: 1;
+      text-align: center;
+      vertical-align: middle;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 1.2rem;
+      background: var(--surface);
+      color: var(--text);
+      transition: .3s;
+      width: 30%;
+    }
+    .cm-label {
+      font-size: 0.65rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      padding: 4px;
+      text-align: center;
+    }
+    .cm-label-v {
+      writing-mode: vertical-lr;
+      transform: rotate(180deg);
+    }
+    .cm-header {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--accent2);
+      text-align: center;
+      padding-bottom: 8px;
+    }
+
+    .st-badge {
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .st-ok { background: rgba(16, 185, 129, 0.2); color: var(--green); }
+    .st-err { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+
+    /* Responsive */
+    @media(max-width:640px) {
+      header {
+        padding: 16px 20px
+      }
+
+      .tabs {
+        padding: 8px 20px
+      }
+
+      main {
+        padding: 0 16px;
+        margin: 20px auto
+      }
+
+      .grid {
+        grid-template-columns: 1fr 1fr
+      }
+
+      .acc-pills {
+        display: none
+      }
+
+      .rprob-grid {
+        grid-template-columns: 1fr
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <div class="logo">🌸</div>
+    <div>
+      <h1>IrisVision</h1>
+      <div class="sub">Clasificacion de Especies de Flores Iris — ML con Regresion Logistica &amp; ANN</div>
+    </div>
+    <div class="acc-pills">
+      <div class="acc-pill">LR: <span id="acc-lr">--</span>%</div>
+      <div class="acc-pill">ANN: <span id="acc-ann">--</span>%</div>
+    </div>
+  </header>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('ind')">🌺 Prediccion Individual</div>
+    <div class="tab" onclick="switchTab('batch')">📋 Prediccion por Lotes</div>
+  </div>
+
+  <main>
+
+    <!-- PANEL INDIVIDUAL -->
+    <div id="panel-ind" class="panel active">
+
+      <div class="card">
+        <h2>
+          <div class="icon" style="background:linear-gradient(135deg,rgba(168,85,247,.2),rgba(34,211,238,.15))">🧠</div>
+          Seleccionar Modelo
+        </h2>
+        <div class="model-row">
+          <button class="mbtn sel" id="mi-lr" onclick="selMod('lr','i')">Regresion Logistica<small>Modelo lineal
+              clasico</small></button>
+          <button class="mbtn" id="mi-ann" onclick="selMod('ann','i')">Red Neuronal (ANN)<small>Perceptron
+              multicapa</small></button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>
+          <div class="icon" style="background:linear-gradient(135deg,rgba(16,185,129,.2),rgba(34,211,238,.15))">🌿</div>
+          Medidas de la Flor
+        </h2>
+        <form id="form-ind" onsubmit="predInd(event)">
+          <div class="grid">
+            <div class="field">
+              <label>Largo del Sepalo (cm)</label>
+              <input type="number" name="sepal_length" step="0.1" min="3" max="9" placeholder="ej. 5.1" required>
+              <div class="hint-range">Rango: 4.3 - 7.9</div>
+            </div>
+            <div class="field">
+              <label>Ancho del Sepalo (cm)</label>
+              <input type="number" name="sepal_width" step="0.1" min="1" max="5" placeholder="ej. 3.5" required>
+              <div class="hint-range">Rango: 2.0 - 4.4</div>
+            </div>
+            <div class="field">
+              <label>Largo del Petalo (cm)</label>
+              <input type="number" name="petal_length" step="0.1" min="0.5" max="8" placeholder="ej. 1.4" required>
+              <div class="hint-range">Rango: 1.0 - 6.9</div>
+            </div>
+            <div class="field">
+              <label>Ancho del Petalo (cm)</label>
+              <input type="number" name="petal_width" step="0.1" min="0" max="3" placeholder="ej. 0.2" required>
+              <div class="hint-range">Rango: 0.1 - 2.5</div>
+            </div>
+          </div>
+          <div style="margin-top:24px;display:flex;gap:12px">
+            <button type="submit" class="btn btn-primary" id="btn-ind">🔍 Clasificar Flor</button>
+            <button type="button" class="btn btn-ghost" onclick="fillExample()">✨ Ejemplo</button>
+          </div>
+        </form>
+
+        <div class="rbox" id="rbox-ind">
+          <div class="rlbl" id="r-modelo">Modelo: -</div>
+          <div class="rmain" id="r-label">-</div>
+          <div class="rprob-grid" id="r-probs"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PANEL LOTES -->
+    <div id="panel-batch" class="panel">
+
+      <div class="card">
+        <h2>
+          <div class="icon" style="background:linear-gradient(135deg,rgba(168,85,247,.2),rgba(34,211,238,.15))">🧠</div>
+          Seleccionar Modelo
+        </h2>
+        <div class="model-row">
+          <button class="mbtn sel" id="mb-lr" onclick="selMod('lr','b')">Regresion Logistica<small>Modelo lineal
+              clasico</small></button>
+          <button class="mbtn" id="mb-ann" onclick="selMod('ann','b')">Red Neuronal (ANN)<small>Perceptron
+              multicapa</small></button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>
+          <div class="icon" style="background:linear-gradient(135deg,rgba(16,185,129,.2),rgba(245,158,11,.15))">📊</div>
+          Datos en Lote (CSV)
+        </h2>
+        <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 12px;">
+          <p class="hint" style="margin-bottom: 0;">
+            Pega filas CSV, una por flor, sin encabezado, o sube un archivo:<br>
+            <code>sepal_length, sepal_width, petal_length, petal_width</code>
+          </p>
+          <input type="file" id="batch-file" accept=".csv" style="display:none" onchange="loadCSV(event)">
+          <button type="button" class="btn btn-ghost" onclick="document.getElementById('batch-file').click()" style="padding: 8px 16px; font-size: 0.8rem; border-radius: 8px;">📁 Subir CSV</button>
+        </div>
+        <textarea id="batch-txt" placeholder="5.1,3.5,1.4,0.2&#10;7.0,3.2,4.7,1.4&#10;6.3,3.3,6.0,2.5"></textarea>
+        <div style="margin-top:16px;display:flex;gap:12px;flex-wrap:wrap">
+          <button class="btn btn-secondary" id="btn-batch" onclick="predBatch()">🔬 Clasificar Lote</button>
+          <button class="btn btn-ghost" onclick="clearBatch()">🗑 Limpiar</button>
+        </div>
+      </div>
+
+      <div class="card" id="batch-out" style="display:none">
+        <h2>
+          <div class="icon" style="background:linear-gradient(135deg,rgba(168,85,247,.2),rgba(236,72,153,.15))">📈</div>
+          Resultados
+        </h2>
+        <div class="mets" id="batch-mets"></div>
+        <div class="tbl-wrap">
+          <table>
+            <thead>
+              <tr id="tbl-head"></tr>
+            </thead>
+            <tbody id="tbl-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    const COLS = ['sepal_length', 'sepal_width', 'petal_length', 'petal_width'];
+    const SPECIES = ['Setosa', 'Versicolor', 'Virginica'];
+    const SP_COLORS = { 'Setosa': 'var(--setosa)', 'Versicolor': 'var(--versicolor)', 'Virginica': 'var(--virginica)' };
+    const SP_CLASS = { 'Setosa': 'b-setosa', 'Versicolor': 'b-versicolor', 'Virginica': 'b-virginica' };
+    const SP_RCLASS = { 'Setosa': 'setosa', 'Versicolor': 'versicolor', 'Virginica': 'virginica' };
+    const SP_EMOJI = { 'Setosa': '🌼', 'Versicolor': '🌺', 'Virginica': '🌷' };
+
+    let modI = 'lr', modB = 'lr';
+
+    // Cargar accuracies
+    fetch('/accuracies').then(r => r.json()).then(d => {
+      document.getElementById('acc-lr').textContent = d.lr;
+      document.getElementById('acc-ann').textContent = d.ann;
+    }).catch(() => { });
+
+    function switchTab(t) {
+      document.querySelectorAll('.tab').forEach((el, i) =>
+        el.classList.toggle('active', (t === 'ind' && i === 0) || (t === 'batch' && i === 1)));
+      ['ind', 'batch'].forEach(id =>
+        document.getElementById('panel-' + id).classList.toggle('active', id === t));
+    }
+
+    function selMod(m, panel) {
+      if (panel === 'i') {
+        modI = m;
+        document.getElementById('mi-lr').classList.toggle('sel', m === 'lr');
+        document.getElementById('mi-ann').classList.toggle('sel', m === 'ann');
+      } else {
+        modB = m;
+        document.getElementById('mb-lr').classList.toggle('sel', m === 'lr');
+        document.getElementById('mb-ann').classList.toggle('sel', m === 'ann');
+      }
+    }
+
+    function fillExample() {
+      const examples = [
+        { sepal_length: 5.1, sepal_width: 3.5, petal_length: 1.4, petal_width: 0.2 },
+        { sepal_length: 7.0, sepal_width: 3.2, petal_length: 4.7, petal_width: 1.4 },
+        { sepal_length: 6.3, sepal_width: 3.3, petal_length: 6.0, petal_width: 2.5 }
+      ];
+      const ex = examples[Math.floor(Math.random() * examples.length)];
+      const form = document.getElementById('form-ind');
+      COLS.forEach(k => { form.querySelector('[name="' + k + '"]').value = ex[k]; });
+    }
+
+    async function predInd(e) {
+      e.preventDefault();
+      const btn = document.getElementById('btn-ind');
+      btn.disabled = true; btn.textContent = 'Clasificando...';
+      const fd = new FormData(document.getElementById('form-ind'));
+      const features = COLS.map(k => parseFloat(fd.get(k)));
+      try {
+        const r = await fetch('/predict', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: modI, features }) });
+        const res = await r.json();
+        if (res.error) { alert(res.error); return; }
+        showIndResult(res);
+      } catch (err) { alert('Error: ' + err.message); }
+      finally { btn.disabled = false; btn.innerHTML = '🔍 Clasificar Flor'; }
+    }
+
+    function showIndResult(res) {
+      const box = document.getElementById('rbox-ind');
+      const sp = res.species;
+      box.className = 'rbox show ' + SP_RCLASS[sp];
+      document.getElementById('r-modelo').textContent = 'Modelo: ' + (modI === 'lr' ? 'Regresion Logistica' : 'Red Neuronal ANN');
+      document.getElementById('r-label').innerHTML = SP_EMOJI[sp] + ' ' + sp;
+      let probsHtml = '';
+      SPECIES.forEach(s => {
+        const val = res.probabilities[s];
+        const color = SP_COLORS[s];
+        probsHtml += `<div class="rprob-item"><div class="name">${SP_EMOJI[s]} ${s}</div><div class="val" style="color:${color}">${val}%</div><div class="bar"><div class="bar-fill" style="width:${val}%;background:${color}"></div></div></div>`;
+      });
+      document.getElementById('r-probs').innerHTML = probsHtml;
+    }
+
+    async function predBatch() {
+      const txt = document.getElementById('batch-txt').value.trim();
+      if (!txt) { alert('Ingresa datos CSV.'); return; }
+      const btn = document.getElementById('btn-batch');
+      btn.disabled = true; btn.textContent = 'Clasificando...';
+      
+      let lines = txt.split('\n').filter(l => l.trim() !== '');
+      // Detectar y quitar encabezado si existe (si la primera linea no empieza por numero)
+      if (lines.length > 0 && isNaN(parseFloat(lines[0][0]))) {
+        lines.shift();
+      }
+
+      const rows = lines.map(r => r.split(',').map(v => v.trim() === '' ? NaN : Number(v)));
+      const dataForServer = rows.map(r => r.slice(0, 4));
+      const yTrue = rows.length > 0 && rows[0].length >= 5 ? rows.map(r => r[4]) : null;
+
+      try {
+        const r = await fetch('/predict_batch', { 
+          method: 'POST', 
+          headers: { 'Content-Type': 'application/json' }, 
+          body: JSON.stringify({ model: modB, rows: dataForServer }) 
+        });
+        const res = await r.json();
+        if (res.error) { alert(res.error); return; }
+        showBatchResults(res, rows, yTrue);
+      } catch (err) { alert('Error: ' + err.message); }
+      finally { btn.disabled = false; btn.innerHTML = '🔬 Clasificar Lote'; }
+    }
+
+    function showBatchResults(res, rows, yTrue) {
+      const total = res.predictions.length;
+      const counts = { Setosa: 0, Versicolor: 0, Virginica: 0 };
+      res.species.forEach(s => counts[s]++);
+
+      let metsHtml = `<div class="met"><div class="mv">${total}</div><div class="ml">Total Flores</div></div>`;
+      
+      let accuracy = null;
+      if (yTrue) {
+        let correct = 0;
+        for (let i = 0; i < total; i++) {
+          if (res.predictions[i] === yTrue[i]) correct++;
+        }
+        accuracy = ((correct / total) * 100).toFixed(1);
+        metsHtml += `<div class="met"><div class="mv" style="-webkit-text-fill-color:var(--green);color:var(--green)">${accuracy}%</div><div class="ml">Exactitud (Acc)</div></div>`;
+      }
+
+      SPECIES.forEach(s => {
+        metsHtml += `<div class="met"><div class="mv" style="-webkit-text-fill-color:${SP_COLORS[s]};color:${SP_COLORS[s]}">${counts[s]}</div><div class="ml">${s}</div></div>`;
+      });
+      document.getElementById('batch-mets').innerHTML = metsHtml;
+
+      // Matriz de Confusión
+      let cmHtml = '';
+      if (yTrue) {
+        const matrix = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+        for (let i = 0; i < total; i++) {
+          const t = yTrue[i];
+          const p = res.predictions[i];
+          if (t >= 0 && t <= 2 && p >= 0 && p <= 2) matrix[t][p]++;
+        }
+
+        cmHtml = `<div class="cm-wrap">
+          <h2 style="justify-content:center; font-size: 1rem; color: var(--muted); margin-bottom: 20px;">Matriz de Confusión</h2>
+          <table class="cm-table">
+            <tr><td></td>${SPECIES.map(s => `<td class="cm-label">${s.substring(0,3)}</td>`).join('')}</tr>
+            ${SPECIES.map((s, i) => `
+              <tr>
+                <td class="cm-label">${s.substring(0,3)}</td>
+                ${matrix[i].map((val, j) => {
+                  const intensity = val > 0 ? Math.min(0.1 + (val / total) * 0.8, 0.9) : 0.04;
+                  const color = i === j ? `rgba(16, 185, 129, ${intensity})` : (val > 0 ? `rgba(239, 68, 68, ${intensity})` : 'var(--surface)');
+                  return `<td class="cm-cell" style="background:${color}">${val}</td>`;
+                }).join('')}
+              </tr>
+            `).join('')}
+          </table>
+          <div style="text-align:center; font-size: 0.65rem; color: var(--muted); margin-top: 12px;">Filas: Real | Columnas: Predicción</div>
+        </div>`;
+      }
+      
+      // Inject CM before table
+      const existingCM = document.getElementById('cm-container');
+      if (existingCM) existingCM.remove();
+      const cmContainer = document.createElement('div');
+      cmContainer.id = 'cm-container';
+      cmContainer.innerHTML = cmHtml;
+      document.getElementById('batch-mets').after(cmContainer);
+
+      const headers = ['#', 'Sepalo L', 'Sepalo A', 'Petalo L', 'Petalo A', 'Especie', 'Estado', 'Conf'];
+      document.getElementById('tbl-head').innerHTML = headers.map(c => '<th>' + c + '</th>').join('');
+
+      let html = '';
+      for (let i = 0; i < rows.length; i++) {
+        const sp = res.species[i];
+        const prob = res.probabilities[i];
+        const conf = Math.round(prob[sp] * 10) / 10;
+        const badge = `<span class="badge ${SP_CLASS[sp]}">${SP_EMOJI[sp]} ${sp}</span>`;
+        
+        let status = '';
+        if (yTrue) {
+          const isOk = res.predictions[i] === yTrue[i];
+          status = `<span class="st-badge ${isOk ? 'st-ok' : 'st-err'}">${isOk ? 'OK' : 'ERR'}</span>`;
+        } else {
+          status = `<span style="color:var(--muted)">-</span>`;
+        }
+
+        html += `<tr><td>${i + 1}</td>`;
+        for (let j = 0; j < 4; j++) html += `<td>${rows[i][j]}</td>`;
+        html += `<td>${badge}</td><td>${status}</td><td>${conf}%</td></tr>`;
+      }
+      document.getElementById('tbl-body').innerHTML = html;
+      const out = document.getElementById('batch-out');
+      out.style.display = 'block';
+      out.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function clearBatch() {
+      document.getElementById('batch-txt').value = '';
+      document.getElementById('batch-out').style.display = 'none';
+    }
+
+    function loadCSV(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        document.getElementById('batch-txt').value = e.target.result.trim();
+      };
+      reader.readAsText(file);
+      event.target.value = '';
+    }
+  </script>
+</body>
+
+</html>
